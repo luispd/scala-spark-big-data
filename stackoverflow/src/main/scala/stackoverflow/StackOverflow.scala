@@ -180,6 +180,12 @@ class StackOverflow extends Serializable {
   @tailrec final def kmeans(means: Array[(Int, Int)], vectors: RDD[(Int, Int)], iter: Int = 1, debug: Boolean = false): Array[(Int, Int)] = {
     val newMeans = means.clone() // you need to compute newMeans
 
+    val newMeans2 = vectors.map(x=> (findClosest(x,means),x)).groupByKey.map { x => (x._1,averageVectors(x._2)) }.collect
+
+    for {
+      m<-newMeans2
+    } yield newMeans.update(m._1, m._2)
+
     // TODO: Fill in the newMeans array
     val distance = euclideanDistance(means, newMeans)
 
