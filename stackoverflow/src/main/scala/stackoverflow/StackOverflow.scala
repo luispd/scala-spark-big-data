@@ -123,7 +123,7 @@ class StackOverflow extends Serializable {
     }
 
     val res = scored.map(x => (langSpread*firstLangInTag(x._1.tags,langs).get,x._2))
-    res
+    res.cache
   }
 
 
@@ -180,7 +180,7 @@ class StackOverflow extends Serializable {
   @tailrec final def kmeans(means: Array[(Int, Int)], vectors: RDD[(Int, Int)], iter: Int = 1, debug: Boolean = false): Array[(Int, Int)] = {
     val newMeans = means.clone() // you need to compute newMeans
 
-    val newMeans2 = vectors.map(x=> (findClosest(x,means),x)).groupByKey.map { x => (x._1,averageVectors(x._2)) }.collect
+    val newMeans2 = vectors.map(x=> (findClosest(x,means),x)).groupByKey.mapValues { x => averageVectors(x) }.collect
 
     for {
       m<-newMeans2
