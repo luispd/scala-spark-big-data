@@ -62,15 +62,20 @@ object TimeUsage {
     *         have type Double. None of the fields are nullable.
     * @param columnNames Column names of the DataFrame
     */
-  def dfSchema(columnNames: List[String]): StructType =
-    ???
+  def dfSchema(columnNames: List[String]): StructType = {
+    val primero = StructField(columnNames.head,StringType,false)
+    val resto = columnNames.tail.map(fieldName=>StructField(fieldName,DoubleType,false))
+    val fields = primero::resto
+    StructType(fields)
+  }
 
 
   /** @return An RDD Row compatible with the schema produced by `dfSchema`
     * @param line Raw fields
     */
-  def row(line: List[String]): Row =
-    ???
+  def row(line: List[String]): Row = {
+    Row.fromSeq(line.head::line.tail.map(_.toDouble))
+  }
 
   /** @return The initial data frame columns partitioned in three groups: primary needs (sleeping, eating, etc.),
     *         work and other (leisure activities)
@@ -88,7 +93,20 @@ object TimeUsage {
     *    “t10”, “t12”, “t13”, “t14”, “t15”, “t16” and “t18” (those which are not part of the previous groups only).
     */
   def classifiedColumns(columnNames: List[String]): (List[Column], List[Column], List[Column]) = {
-    ???
+    val c = new Column("aaa")
+    columnNames.foldRight((List.empty[Column],List.empty[Column],List.empty[Column]))((x,y) => {
+      val c = new Column(x)
+      if (x.startsWith("t01")||x.startsWith("t03")||x.startsWith("t11")||x.startsWith("t1801")||x.startsWith("t1803")) {
+        (c::y._1,y._2,y._3)
+      }
+      else if (x.startsWith("t05")||x.startsWith("t1805")) {
+        (y._1,c::y._2,y._3)
+      }
+      else {
+        (y._1,y._2,c::y._3)
+      }
+      })
+
   }
 
   /** @return a projection of the initial DataFrame such that all columns containing hours spent on primary needs
@@ -127,13 +145,20 @@ object TimeUsage {
     otherColumns: List[Column],
     df: DataFrame
   ): DataFrame = {
-    val workingStatusProjection: Column = ???
-    val sexProjection: Column = ???
-    val ageProjection: Column = ???
+    val workingStatusProjection: Column = when(df("telfs") < 3 && df("telfs") >= 1, "working")
+        .otherwise("not working")
+        .as("working")
+    val sexProjection: Column = when(df("tesex").=!=(1),"female")
+        .otherwise("male")
+        .as("sex")
+    val ageProjection: Column = when(df("teage") >= 15 && df("teage") <= 22, "young")
+        .when(df("teage") >= 23 && df("teage") <= 55, "active")
+        .otherwise("elder")
+        .as("age")
 
-    val primaryNeedsProjection: Column = ???
-    val workProjection: Column = ???
-    val otherProjection: Column = ???
+    val primaryNeedsProjection: Column = primaryNeedsColumns.map { x => df(x.toString) }.reduce(_ + _)/60
+    val workProjection: Column = workColumns.map { x => df(x.toString) }.reduce(_ + _)/60
+    val otherProjection: Column = otherColumns.map { x => df(x.toString) }.reduce(_ + _)/60
     df
       .select(workingStatusProjection, sexProjection, ageProjection, primaryNeedsProjection, workProjection, otherProjection)
       .where($"telfs" <= 4) // Discard people who are not in labor force
